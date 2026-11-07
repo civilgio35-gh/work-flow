@@ -1,0 +1,6 @@
+{
+  "name": "할 일 관리 (To-Do List)",
+  "description": "로컬 브라우저에 안전하게 저장되는 간결하고 깔끔한 업무 및 할 일 관리 도구",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

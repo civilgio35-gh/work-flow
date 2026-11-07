@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>할 일 관리 (To-Do List)</title>
+  <meta name="description" content="로컬 브라우저에 안전하게 저장되는 간결하고 깔끔한 업무 및 할 일 관리 도구" />
+  <meta property="og:title" content="할 일 관리 (To-Do List)" />
+  <meta property="og:description" content="로컬 브라우저에 안전하게 저장되는 간결하고 깔끔한 업무 및 할 일 관리 도구" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <style>
+    /* CSS Reset & Design Tokens */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-page: #f1f5f9;
+      --bg-surface: #ffffff;
+      --bg-surface-alt: #f8fafc;
+      
+      --text-heading: #0f172a;
+      --text-body: #1e293b;
+      --text-muted: #64748b;
+      --text-disabled: #94a3b8;
+      
+      --border-subtle: #e2e8f0;
+      --border-medium: #cbd5e1;
+      --border-focus: #2563eb;
+
+      --blue-primary: #2563eb;
+      --blue-hover: #1d4ed8;
+      --blue-subtle: #eff6ff;
+      --blue-border: #bfdbfe;
+
+      --red-danger: #dc2626;
+      --red-hover: #b91c1c;
+      --red-subtle: #fef2f2;
+      --red-border: #fecaca;
+
+      --amber-warn: #d97706;
+      --amber-subtle: #fffbeb;
+      --amber-border: #fde68a;
+
+      --green-success: #16a34a;
+      --green-subtle: #f0fdf4;
+      --green-border: #bbf7d0;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+
+      --shadow-card: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+      --shadow-card-hover: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, "Helvetica Neue", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-body);
+      line-height: 1.6;
+      padding: 32px 16px 72px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app-wrapper {
+      max-width: 840px;
+      margin: 0 auto;
+    }
+
+    /* =========================================
+       1. Header & Notices
+       ========================================= */
+    .app-header {
+      margin-bottom: 24px;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--blue-primary), #1d4ed8);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      flex-shrink: 0;
+    }
+
+    .app-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text-heading);
+      letter-spacing: -0.025em;
+      line-height: 1.25;
+    }
+
+    .app-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .today-pill {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue-primary);
+      background-color: var(--blue-subtle);
+      border: 1px solid var(--blue-border);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      white-space: nowrap;
+    }
+
+    /* Notice Banner */
+    .sync-notice-banner {
+      background-color: #ffffff;
+      border: 1px solid var(--border-medium);
+      border-left: 4px solid var(--blue-primary);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      line-height: 1.45;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .sync-notice-banner svg {
+      flex-shrink: 0;
+      color: var(--blue-primary);
+    }
+
+    /* Critical Storage Alert */
+    .alert-banner {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .alert-banner.show {
+      display: flex;
+    }
+
+    .alert-danger {
+      background-color: var(--red-subtle);
+      border: 1px solid var(--red-border);
+      color: var(--red-danger);
+    }
+
+    /* =========================================
+       2. Summary Statistics Section
+       ========================================= */
+    .summary-section {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 640px) {
+      .summary-section {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .summary-section .summary-card:last-child {
+        grid-column: span 2;
+      }
+    }
+
+    .summary-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-card);
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .summary-card:hover {
+      border-color: var(--blue-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .summary-card.active {
+      border-color: var(--blue-primary);
+      background-color: var(--blue-subtle);
+    }
+
+    .summary-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .summary-count {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-heading);
+      letter-spacing: -0.02em;
+    }
+
+    .summary-count.color-primary { color: var(--blue-primary); }
+    .summary-count.color-danger { color: var(--red-danger); }
+    .summary-count.color-success { color: var(--green-success); }
+
+    /* =========================================
+       3. Input Form Area (Clearly Separated)
+       ========================================= */
+    .form-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 26px;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 32px;
+      position: relative;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-heading);
+      letter-spacing: -0.015em;
+    }
+
+    .input-form {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .form-group-title {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-heading);
+    }
+
+    .field-required {
+      color: var(--red-danger);
+      margin-left: 2px;
+    }
+
+    .input-text {
+      width: 100%;
+      padding: 13px 16px;
+      font-size: 15px;
+      color: var(--text-heading);
+      background-color: #ffffff;
+      border: 1.5px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: all 0.15s ease-in-out;
+    }
+
+    .input-text:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .input-text.has-error {
+      border-color: var(--red-danger);
+      background-color: #fffaf0;
+    }
+
+    .inline-error-text {
+      display: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--red-danger);
+      margin-top: 4px;
+    }
+
+    .inline-error-text.show {
+      display: block;
+    }
+
+    /* Details Grid (Priority + Due Date + Add Button) */
+    .form-details-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1.3fr 1fr;
+      gap: 14px;
+      align-items: flex-end;
+    }
+
+    @media (max-width: 640px) {
+      .form-details-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+    }
+
+    .form-field-unit {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .select-dropdown, .input-date {
+      width: 100%;
+      height: 48px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-heading);
+      background-color: #ffffff;
+      border: 1.5px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: all 0.15s ease-in-out;
+    }
+
+    .select-dropdown:focus, .input-date:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    /* Submit Button */
+    .btn-submit {
+      width: 100%;
+      height: 48px;
+      background-color: var(--blue-primary);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease-in-out;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .btn-submit:hover {
+      background-color: var(--blue-hover);
+      box-shadow: 0 4px 8px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-submit:active {
+      transform: scale(0.985);
+    }
+
+    /* =========================================
+       4. Task List Area (Clearly Separated)
+       ========================================= */
+    .list-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 26px;
+      box-shadow: var(--shadow-card);
+    }
+
+    /* Search Bar Wrapper */
+    .search-bar-wrap {
+      margin-bottom: 16px;
+    }
+
+    .search-input-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 46px;
+      padding: 10px 42px 10px 44px;
+      font-size: 14.5px;
+      color: var(--text-heading);
+      background-color: var(--bg-surface-alt);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: all 0.15s ease-in-out;
+    }
+
+    .search-input:focus {
+      background-color: #ffffff;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .btn-clear-search {
+      position: absolute;
+      right: 12px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: none;
+      background: #cbd5e1;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-clear-search:hover {
+      background: #94a3b8;
+      color: #ffffff;
+    }
+
+    /* Toolbar: Tabs and Sort */
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tabs-wrapper {
+      display: flex;
+      background-color: #e2e8f0;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      gap: 3px;
+      overflow-x: auto;
+      max-width: 100%;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-button {
+      background: transparent;
+      border: none;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      white-space: nowrap;
+    }
+
+    .tab-button.active {
+      background-color: #ffffff;
+      color: var(--blue-primary);
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .sort-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sort-dropdown {
+      height: 38px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-body);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      background-color: #ffffff;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Task Items Stack */
+    .tasks-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Individual Task Card */
+    .task-row {
+      background-color: #ffffff;
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      transition: all 0.15s ease-in-out;
+      position: relative;
+    }
+
+    .task-row:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+    }
+
+    .task-row.is-completed {
+      background-color: #f8fafc;
+      border-color: #e2e8f0;
+    }
+
+    .task-main-col {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Custom Checkbox */
+    .check-action-area {
+      padding-top: 2px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .check-box-visual {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #94a3b8;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #ffffff;
+      transition: all 0.15s ease-in-out;
+    }
+
+    .check-box-visual:hover {
+      border-color: var(--blue-primary);
+    }
+
+    .task-row.is-completed .check-box-visual {
+      background-color: var(--green-success);
+      border-color: var(--green-success);
+      color: #ffffff;
+    }
+
+    .check-box-visual svg {
+      opacity: 0;
+      transform: scale(0.6);
+      transition: all 0.15s ease-in-out;
+    }
+
+    .task-row.is-completed .check-box-visual svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Task Content */
+    .task-details-col {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-title-text {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-heading);
+      word-break: break-word;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .task-row.is-completed .task-title-text {
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+      color: var(--text-disabled);
+    }
+
+    /* Meta Badges Row */
+    .task-badges-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Standard Badge Design */
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      white-space: nowrap;
+      line-height: 1.35;
+    }
+
+    .dot-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Priority Badges with clear Korean Text */
+    .badge-prio-high {
+      background-color: var(--red-subtle);
+      color: var(--red-danger);
+      border: 1px solid var(--red-border);
+    }
+    .badge-prio-high .dot-indicator {
+      background-color: var(--red-danger);
+    }
+
+    .badge-prio-med {
+      background-color: var(--amber-subtle);
+      color: var(--amber-warn);
+      border: 1px solid var(--amber-border);
+    }
+    .badge-prio-med .dot-indicator {
+      background-color: var(--amber-warn);
+    }
+
+    .badge-prio-low {
+      background-color: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+    .badge-prio-low .dot-indicator {
+      background-color: #64748b;
+    }
+
+    /* Date Status Badges */
+    .badge-date-overdue {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    .badge-date-today {
+      background-color: var(--blue-subtle);
+      color: var(--blue-primary);
+      border: 1px solid var(--blue-border);
+    }
+
+    .badge-date-normal {
+      background-color: #f8fafc;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+      font-weight: 600;
+    }
+
+    .badge-date-none {
+      background-color: #f8fafc;
+      color: #94a3b8;
+      border: 1px dashed #cbd5e1;
+      font-weight: 500;
+    }
+
+    .badge-status-done {
+      background-color: var(--green-subtle);
+      color: var(--green-success);
+      border: 1px solid var(--green-border);
+    }
+
+    /* Delete Button */
+    .task-side-actions {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .btn-delete-item {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      flex-shrink: 0;
+    }
+
+    .btn-delete-item:hover {
+      background-color: var(--red-subtle);
+      color: var(--red-danger);
+      border-color: var(--red-border);
+    }
+
+    /* Responsive Mobile Adjustments */
+    @media (max-width: 520px) {
+      body {
+        padding: 20px 12px 60px;
+      }
+
+      .form-container, .list-container {
+        padding: 18px 16px;
+      }
+
+      .app-title {
+        font-size: 22px;
+      }
+
+      .task-row {
+        padding: 14px;
+        gap: 10px;
+      }
+
+      .task-title-text {
+        font-size: 15px;
+      }
+
+      .badge-pill {
+        font-size: 11px;
+        padding: 2px 8px;
+      }
+    }
+
+    /* Empty State */
+    .empty-placeholder {
+      background: #f8fafc;
+      border: 2px dashed #cbd5e1;
+      border-radius: var(--radius-md);
+      padding: 48px 20px;
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    .empty-icon-wrap {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      background-color: var(--blue-subtle);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--blue-primary);
+    }
+
+    .empty-main-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-bottom: 6px;
+    }
+
+    .empty-sub-text {
+      font-size: 14px;
+      color: var(--text-muted);
+      max-width: 360px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    .btn-reset-filter {
+      margin-top: 14px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue-primary);
+      background-color: #ffffff;
+      border: 1px solid var(--blue-border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-reset-filter:hover {
+      background-color: var(--blue-subtle);
+    }
+
+    /* Toast Notification */
+    .toast-tray {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast-bubble {
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(16px);
+      opacity: 0;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast-bubble.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-bubble.toast-error {
+      background: var(--red-danger);
+    }
+
+    .toast-bubble.toast-success {
+      background: #15803d;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="brand-group">
+          <div class="brand-icon" aria-hidden="true">✓</div>
+          <div>
+            <h1 class="app-title">할 일 관리</h1>
+            <p class="app-subtitle">간결하고 정확한 나만의 개인 업무 도구</p>
+          </div>
+        </div>
+        <div class="today-pill" id="todayText">오늘 날짜 확인 중...</div>
+      </div>
+
+      <!-- Browser Storage Sync Notice (Required) -->
+      <div class="sync-notice-banner" role="note">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>이 브라우저에 저장되며 다른 기기와 자동 동기화되지 않습니다.</span>
+      </div>
+
+      <!-- Critical Storage Alert Message -->
+      <div class="alert-banner alert-danger" id="storageAlert" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span id="storageAlertText">저장되지 않았습니다. 브라우저 저장소 공간이나 권한을 확인해주세요.</span>
+      </div>
+    </header>
+
+    <!-- Summary Statistics -->
+    <section class="summary-section" aria-label="업무 상태 요약">
+      <div class="summary-card active" data-filter="all" id="statAllCard" tabindex="0" role="button">
+        <div class="summary-label">전체 업무</div>
+        <div class="summary-count" id="statAll">0</div>
+      </div>
+      <div class="summary-card" data-filter="active" id="statActiveCard" tabindex="0" role="button">
+        <div class="summary-label">진행 중</div>
+        <div class="summary-count color-primary" id="statActive">0</div>
+      </div>
+      <div class="summary-card" data-filter="today" id="statTodayCard" tabindex="0" role="button">
+        <div class="summary-label">오늘 마감</div>
+        <div class="summary-count color-primary" id="statToday">0</div>
+      </div>
+      <div class="summary-card" data-filter="overdue" id="statOverdueCard" tabindex="0" role="button">
+        <div class="summary-label">기한 지남</div>
+        <div class="summary-count color-danger" id="statOverdue">0</div>
+      </div>
+      <div class="summary-card" data-filter="completed" id="statCompletedCard" tabindex="0" role="button">
+        <div class="summary-label">완료됨</div>
+        <div class="summary-count color-success" id="statCompleted">0</div>
+      </div>
+    </section>
+
+    <!-- 1. Input Form Section (Distinct Card Surface) -->
+    <section class="form-container" aria-labelledby="formAreaHeading">
+      <div class="section-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--blue-primary);">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+        <h2 id="formAreaHeading" class="section-title">새 업무 등록</h2>
+      </div>
+
+      <form id="taskForm" class="input-form" novalidate>
+        <!-- Title Input -->
+        <div class="form-group-title">
+          <label for="taskTitle" class="field-label">
+            업무명 <span class="field-required">*</span>
+          </label>
+          <input
+            type="text"
+            id="taskTitle"
+            class="input-text"
+            placeholder="해야 할 업무를 구체적으로 입력하세요 (예: 3분기 예산안 검토)"
+            autocomplete="off"
+            maxlength="200"
+          />
+          <div class="inline-error-text" id="titleError">공백만 있는 제목은 등록할 수 없습니다. 업무 내용을 입력해주세요.</div>
+        </div>
+
+        <!-- Details Grid: Priority + Due Date + Add Button -->
+        <div class="form-details-grid">
+          <div class="form-field-unit">
+            <label for="taskPriority" class="field-label">우선순위</label>
+            <select id="taskPriority" class="select-dropdown">
+              <option value="high">🔴 높음</option>
+              <option value="medium" selected>🟡 보통 (기본값)</option>
+              <option value="low">⚪ 낮음</option>
+            </select>
+          </div>
+
+          <div class="form-field-unit">
+            <label for="taskDueDate" class="field-label">마감일 (선택)</label>
+            <input
+              type="date"
+              id="taskDueDate"
+              class="input-date"
+            />
+          </div>
+
+          <div class="form-field-unit">
+            <button type="submit" class="btn-submit" id="addBtn">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              업무 추가
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- 2. Task List Section (Distinct Card Surface) -->
+    <section class="list-container" aria-labelledby="listAreaHeading">
+      <div class="section-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--blue-primary);">
+          <line x1="8" y1="6" x2="21" y2="6"></line>
+          <line x1="8" y1="12" x2="21" y2="12"></line>
+          <line x1="8" y1="18" x2="21" y2="18"></line>
+          <line x1="3" y1="6" x2="3.01" y2="6"></line>
+          <line x1="3" y1="12" x2="3.01" y2="12"></line>
+          <line x1="3" y1="18" x2="3.01" y2="18"></line>
+        </svg>
+        <h2 id="listAreaHeading" class="section-title">업무 목록</h2>
+      </div>
+
+      <!-- Real-time Task Search Input Box -->
+      <div class="search-bar-wrap">
+        <div class="search-input-box">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            id="taskSearchInput"
+            class="search-input"
+            placeholder="업무명으로 실시간 검색..."
+            autocomplete="off"
+            aria-label="업무명 검색"
+          />
+          <button type="button" id="clearSearchBtn" class="btn-clear-search" style="display: none;" title="검색어 지우기" aria-label="검색어 지우기">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Toolbar: Tabs and Sort -->
+      <div class="list-toolbar">
+        <div class="tabs-wrapper" role="tablist">
+          <button class="tab-button active" data-filter="all" role="tab" aria-selected="true">전체</button>
+          <button class="tab-button" data-filter="active" role="tab" aria-selected="false">진행 중</button>
+          <button class="tab-button" data-filter="today" role="tab" aria-selected="false">오늘 마감</button>
+          <button class="tab-button" data-filter="overdue" role="tab" aria-selected="false">기한 지남</button>
+          <button class="tab-button" data-filter="completed" role="tab" aria-selected="false">완료됨</button>
+        </div>
+
+        <div class="sort-wrapper">
+          <label for="sortSelect" class="sr-only">정렬 순서</label>
+          <select id="sortSelect" class="sort-dropdown">
+            <option value="created-desc">등록일 최신순</option>
+            <option value="due-asc">마감일 빠른순</option>
+            <option value="priority-desc">우선순위 높은순</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Rendered Task Rows -->
+      <main>
+        <div id="taskList" class="tasks-stack" role="list"></div>
+
+        <!-- Empty Guidance State -->
+        <div id="emptyState" class="empty-placeholder" style="display: none;">
+          <div class="empty-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 2 2h12a2 2 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <h3 class="empty-main-text" id="emptyTitle">등록된 업무가 없습니다</h3>
+          <p class="empty-sub-text" id="emptyDesc">위의 '새 업무 등록' 영역에 업무를 입력하고 추가해보세요.</p>
+          <button type="button" id="resetFilterBtn" class="btn-reset-filter" style="display: none;">검색어 및 필터 초기화</button>
+        </div>
+      </main>
+    </section>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-tray" id="toastContainer"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // Storage Key (Preserves user data identically)
+      var STORAGE_KEY = 'todo_applet_tasks_v1';
+
+      // State
+      var tasks = [];
+      var currentFilter = 'all';
+      var currentSort = 'created-desc';
+      var currentSearchQuery = '';
+
+      // DOM Elements
+      var taskForm = document.getElementById('taskForm');
+      var taskTitle = document.getElementById('taskTitle');
+      var taskPriority = document.getElementById('taskPriority');
+      var taskDueDate = document.getElementById('taskDueDate');
+      var titleError = document.getElementById('titleError');
+      var taskList = document.getElementById('taskList');
+      var emptyState = document.getElementById('emptyState');
+      var emptyTitle = document.getElementById('emptyTitle');
+      var emptyDesc = document.getElementById('emptyDesc');
+      var resetFilterBtn = document.getElementById('resetFilterBtn');
+      var todayText = document.getElementById('todayText');
+      var storageAlert = document.getElementById('storageAlert');
+      var storageAlertText = document.getElementById('storageAlertText');
+      var toastContainer = document.getElementById('toastContainer');
+      var sortSelect = document.getElementById('sortSelect');
+      var taskSearchInput = document.getElementById('taskSearchInput');
+      var clearSearchBtn = document.getElementById('clearSearchBtn');
+
+      // Stat Counters
+      var statAll = document.getElementById('statAll');
+      var statActive = document.getElementById('statActive');
+      var statToday = document.getElementById('statToday');
+      var statOverdue = document.getElementById('statOverdue');
+      var statCompleted = document.getElementById('statCompleted');
+
+      // Local Date formatted as YYYY-MM-DD
+      function getLocalTodayDateString() {
+        var now = new Date();
+        var y = now.getFullYear();
+        var m = String(now.getMonth() + 1).padStart(2, '0');
+        var d = String(now.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + d;
+      }
+
+      // Display Local Date Header
+      function updateTodayHeader() {
+        var now = new Date();
+        var days = ['일', '월', '화', '수', '목', '금', '토'];
+        var y = now.getFullYear();
+        var m = now.getMonth() + 1;
+        var d = now.getDate();
+        var dayName = days[now.getDay()];
+        todayText.textContent = '오늘: ' + y + '년 ' + m + '월 ' + d + '일 (' + dayName + ')';
+      }
+
+      // Toast Alerts
+      function showToast(message, type) {
+        var toast = document.createElement('div');
+        toast.className = 'toast-bubble' + (type === 'error' ? ' toast-error' : (type === 'success' ? ' toast-success' : ''));
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+
+        void toast.offsetWidth;
+        toast.classList.add('show');
+
+        setTimeout(function () {
+          toast.classList.remove('show');
+          setTimeout(function () {
+            if (toast.parentNode) {
+              toast.parentNode.removeChild(toast);
+            }
+          }, 250);
+        }, 2500);
+      }
+
+      // Safe LocalStorage Save
+      function saveTasksToStorage() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+          hideStorageError();
+          return true;
+        } catch (e) {
+          console.error('LocalStorage Save Error:', e);
+          showStorageError('저장되지 않았습니다. 브라우저 저장소 공간이나 권한을 확인해주세요.');
+          showToast('저장되지 않았습니다', 'error');
+          return false;
+        }
+      }
+
+      // Safe LocalStorage Load
+      function loadTasksFromStorage() {
+        try {
+          var saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            var parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) {
+              tasks = parsed;
+            }
+          }
+        } catch (e) {
+          console.error('LocalStorage Load Error:', e);
+          showStorageError('이전 저장 데이터를 불러오지 못했습니다.');
+        }
+      }
+
+      function showStorageError(msg) {
+        if (storageAlert && storageAlertText) {
+          storageAlertText.textContent = msg;
+          storageAlert.classList.add('show');
+        }
+      }
+
+      function hideStorageError() {
+        if (storageAlert) {
+          storageAlert.classList.remove('show');
+        }
+      }
+
+      // Unique ID Generator
+      function generateId() {
+        return 'task_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 7);
+      }
+
+      // Due Date Status Rules:
+      // - Compare with local today
+      // - Today is NEVER overdue
+      // - Completed items are NEVER overdue
+      function getTaskDueStatus(task) {
+        if (task.completed) {
+          return { type: 'completed', label: '완료됨' };
+        }
+        if (!task.dueDate) {
+          return { type: 'none', label: '마감일 없음' };
+        }
+
+        var todayStr = getLocalTodayDateString();
+        if (task.dueDate < todayStr) {
+          return { type: 'overdue', label: '기한 지남' };
+        } else if (task.dueDate === todayStr) {
+          return { type: 'today', label: '오늘 마감' };
+        } else {
+          return { type: 'normal', label: task.dueDate };
+        }
+      }
+
+      // Priority details: Color + Clear Korean Label (높음, 보통, 낮음)
+      function getPriorityMeta(priority) {
+        switch (priority) {
+          case 'high':
+            return { className: 'badge-prio-high', text: '우선순위: 높음' };
+          case 'low':
+            return { className: 'badge-prio-low', text: '우선순위: 낮음' };
+          case 'medium':
+          default:
+            return { className: 'badge-prio-med', text: '우선순위: 보통' };
+        }
+      }
+
+      // Update Statistics
+      function updateStats() {
+        var todayStr = getLocalTodayDateString();
+        var total = tasks.length;
+        var completedCount = 0;
+        var activeCount = 0;
+        var todayCount = 0;
+        var overdueCount = 0;
+
+        tasks.forEach(function (task) {
+          if (task.completed) {
+            completedCount++;
+          } else {
+            activeCount++;
+            if (task.dueDate) {
+              if (task.dueDate < todayStr) {
+                overdueCount++;
+              } else if (task.dueDate === todayStr) {
+                todayCount++;
+              }
+            }
+          }
+        });
+
+        statAll.textContent = total;
+        statActive.textContent = activeCount;
+        statToday.textContent = todayCount;
+        statOverdue.textContent = overdueCount;
+        statCompleted.textContent = completedCount;
+      }
+
+      // Filter & Sort with Real-time Search Query
+      function getFilteredAndSortedTasks() {
+        var todayStr = getLocalTodayDateString();
+        var query = currentSearchQuery.trim().toLowerCase();
+
+        var filtered = tasks.filter(function (task) {
+          // Status tab filtering
+          if (currentFilter === 'active' && task.completed) {
+            return false;
+          }
+          if (currentFilter === 'completed' && !task.completed) {
+            return false;
+          }
+          if (currentFilter === 'today' && (task.completed || task.dueDate !== todayStr)) {
+            return false;
+          }
+          if (currentFilter === 'overdue' && (task.completed || !task.dueDate || task.dueDate >= todayStr)) {
+            return false;
+          }
+
+          // Real-time title search filtering
+          if (query.length > 0) {
+            var titleLower = (task.title || '').toLowerCase();
+            if (titleLower.indexOf(query) === -1) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+
+        var priorityWeight = { high: 3, medium: 2, low: 1 };
+
+        filtered.sort(function (a, b) {
+          if (currentSort === 'due-asc') {
+            if (!a.dueDate && !b.dueDate) return (b.createdAt || 0) - (a.createdAt || 0);
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            if (a.dueDate === b.dueDate) return (b.createdAt || 0) - (a.createdAt || 0);
+            return a.dueDate.localeCompare(b.dueDate);
+          } else if (currentSort === 'priority-desc') {
+            var diff = (priorityWeight[b.priority] || 2) - (priorityWeight[a.priority] || 2);
+            if (diff !== 0) return diff;
+            return (b.createdAt || 0) - (a.createdAt || 0);
+          } else {
+            return (b.createdAt || 0) - (a.createdAt || 0);
+          }
+        });
+
+        return filtered;
+      }
+
+      // Render Task List
+      function render() {
+        updateStats();
+
+        var items = getFilteredAndSortedTasks();
+        taskList.innerHTML = '';
+
+        var query = currentSearchQuery.trim();
+
+        if (items.length === 0) {
+          emptyState.style.display = 'block';
+          if (tasks.length === 0) {
+            emptyTitle.textContent = '등록된 업무가 없습니다';
+            emptyDesc.textContent = "상단의 '새 업무 등록' 영역에서 업무를 입력하고 첫 업무를 추가해보세요.";
+            resetFilterBtn.style.display = 'none';
+          } else if (query.length > 0) {
+            emptyTitle.textContent = '검색 결과가 없습니다';
+            emptyDesc.textContent = '"' + escapeHtml(query) + '" 검색어와 일치하는 업무를 찾을 수 없습니다.';
+            resetFilterBtn.style.display = 'inline-block';
+            resetFilterBtn.textContent = '검색어 초기화';
+          } else {
+            emptyTitle.textContent = '해당하는 업무가 없습니다';
+            emptyDesc.textContent = '현재 선택한 상태 필터 조건에 일치하는 업무가 없습니다.';
+            resetFilterBtn.style.display = 'inline-block';
+            resetFilterBtn.textContent = '전체 목록 보기';
+          }
+        } else {
+          emptyState.style.display = 'none';
+          resetFilterBtn.style.display = 'none';
+
+          items.forEach(function (task) {
+            var row = document.createElement('div');
+            row.className = 'task-row' + (task.completed ? ' is-completed' : '');
+            row.setAttribute('role', 'listitem');
+            row.dataset.id = task.id;
+
+            var dueStatus = getTaskDueStatus(task);
+            var priorityMeta = getPriorityMeta(task.priority);
+
+            // Date Badge HTML
+            var dateBadgeHtml = '';
+            if (dueStatus.type === 'overdue') {
+              dateBadgeHtml = '<span class="badge-pill badge-date-overdue">⚠ 기한 지남 (' + escapeHtml(task.dueDate) + ')</span>';
+            } else if (dueStatus.type === 'today') {
+              dateBadgeHtml = '<span class="badge-pill badge-date-today">⚡ 오늘 마감</span>';
+            } else if (dueStatus.type === 'normal') {
+              dateBadgeHtml = '<span class="badge-pill badge-date-normal">📅 ' + escapeHtml(task.dueDate) + '</span>';
+            } else if (dueStatus.type === 'none') {
+              dateBadgeHtml = '<span class="badge-pill badge-date-none">마감일 없음</span>';
+            }
+
+            var statusBadgeHtml = '';
+            if (task.completed) {
+              statusBadgeHtml = '<span class="badge-pill badge-status-done">✓ 완료됨</span>';
+            }
+
+            // Highlight matched search term in title
+            var displayTitle = escapeHtml(task.title);
+            if (query.length > 0) {
+              var re = new RegExp('(' + escapeRegExp(query) + ')', 'gi');
+              displayTitle = displayTitle.replace(re, '<mark style="background-color: #fef08a; padding: 1px 2px; border-radius: 3px;">$1</mark>');
+            }
+
+            row.innerHTML = 
+              '<div class="task-main-col">' +
+                '<label class="check-action-area" title="' + (task.completed ? '미완료로 변경' : '완료로 표시') + '">' +
+                  '<span class="sr-only">완료 상태 변경</span>' +
+                  '<div class="check-box-visual">' +
+                    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' +
+                      '<polyline points="20 6 9 17 4 12"></polyline>' +
+                    '</svg>' +
+                  '</div>' +
+                '</label>' +
+                '<div class="task-details-col">' +
+                  '<div class="task-title-text">' + displayTitle + '</div>' +
+                  '<div class="task-badges-row">' +
+                    '<span class="badge-pill ' + priorityMeta.className + '">' +
+                      '<span class="dot-indicator"></span>' +
+                      priorityMeta.text +
+                    '</span>' +
+                    dateBadgeHtml +
+                    statusBadgeHtml +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="task-side-actions">' +
+                '<button type="button" class="btn-delete-item" title="이 업무 삭제" aria-label="삭제">' +
+                  '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                    '<polyline points="3 6 5 6 21 6"></polyline>' +
+                    '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>' +
+                    '<line x1="10" y1="11" x2="10" y2="17"></line>' +
+                    '<line x1="14" y1="11" x2="14" y2="17"></line>' +
+                  '</svg>' +
+                '</button>' +
+              '</div>';
+
+            // Checkbox Toggle
+            var checkAction = row.querySelector('.check-action-area');
+            checkAction.addEventListener('click', function (e) {
+              e.preventDefault();
+              toggleTask(task.id);
+            });
+
+            // Delete Action
+            var deleteBtn = row.querySelector('.btn-delete-item');
+            deleteBtn.addEventListener('click', function (e) {
+              e.stopPropagation();
+              deleteTask(task.id);
+            });
+
+            taskList.appendChild(row);
+          });
+        }
+      }
+
+      // Escape Helper
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      // Add Task Action
+      function addTask(e) {
+        e.preventDefault();
+
+        var titleVal = taskTitle.value;
+        var trimmed = titleVal.trim();
+
+        // 공백 검증
+        if (trimmed.length === 0) {
+          titleError.classList.add('show');
+          taskTitle.classList.add('has-error');
+          taskTitle.focus();
+          return;
+        }
+
+        titleError.classList.remove('show');
+        taskTitle.classList.remove('has-error');
+
+        var priorityVal = taskPriority.value || 'medium';
+        var dueDateVal = taskDueDate.value || '';
+
+        var newTask = {
+          id: generateId(),
+          title: trimmed,
+          priority: priorityVal,
+          dueDate: dueDateVal,
+          completed: false,
+          createdAt: Date.now()
+        };
+
+        tasks.unshift(newTask);
+
+        if (saveTasksToStorage()) {
+          showToast('새 업무가 등록되었습니다.', 'success');
+        }
+
+        taskTitle.value = '';
+        taskPriority.value = 'medium'; // 기본값 보통 유지
+        taskDueDate.value = '';
+        taskTitle.focus();
+
+        render();
+      }
+
+      // Toggle Task
+      function toggleTask(id) {
+        for (var i = 0; i < tasks.length; i++) {
+          if (tasks[i].id === id) {
+            tasks[i].completed = !tasks[i].completed;
+            break;
+          }
+        }
+        saveTasksToStorage();
+        render();
+      }
+
+      // Delete Task (선택 항목만 삭제)
+      function deleteTask(id) {
+        tasks = tasks.filter(function (t) {
+          return t.id !== id;
+        });
+
+        if (saveTasksToStorage()) {
+          showToast('업무가 삭제되었습니다.', 'normal');
+        }
+
+        render();
+      }
+
+      // Setup Filter Controls
+      function setupFilters() {
+        var filterBtns = document.querySelectorAll('.tab-button');
+        filterBtns.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var filter = btn.dataset.filter;
+            setFilter(filter);
+          });
+        });
+
+        var statCards = document.querySelectorAll('.summary-card');
+        statCards.forEach(function (card) {
+          card.addEventListener('click', function () {
+            var filter = card.dataset.filter;
+            setFilter(filter);
+          });
+          card.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              var filter = card.dataset.filter;
+              setFilter(filter);
+            }
+          });
+        });
+
+        if (resetFilterBtn) {
+          resetFilterBtn.addEventListener('click', function () {
+            taskSearchInput.value = '';
+            currentSearchQuery = '';
+            clearSearchBtn.style.display = 'none';
+            setFilter('all');
+          });
+        }
+      }
+
+      function setFilter(filter) {
+        currentFilter = filter;
+
+        var filterBtns = document.querySelectorAll('.tab-button');
+        filterBtns.forEach(function (btn) {
+          var active = btn.dataset.filter === filter;
+          btn.classList.toggle('active', active);
+          btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+
+        var statCards = document.querySelectorAll('.summary-card');
+        statCards.forEach(function (c) {
+          c.classList.toggle('active', c.dataset.filter === filter);
+        });
+
+        render();
+      }
+
+      // Setup Sort Control
+      function setupSort() {
+        sortSelect.addEventListener('change', function () {
+          currentSort = sortSelect.value;
+          render();
+        });
+      }
+
+      // Setup Real-time Search Box
+      function setupSearch() {
+        taskSearchInput.addEventListener('input', function () {
+          currentSearchQuery = taskSearchInput.value;
+          if (currentSearchQuery.length > 0) {
+            clearSearchBtn.style.display = 'flex';
+          } else {
+            clearSearchBtn.style.display = 'none';
+          }
+          render();
+        });
+
+        clearSearchBtn.addEventListener('click', function () {
+          taskSearchInput.value = '';
+          currentSearchQuery = '';
+          clearSearchBtn.style.display = 'none';
+          taskSearchInput.focus();
+          render();
+        });
+      }
+
+      // Clear Error on Input
+      taskTitle.addEventListener('input', function () {
+        if (taskTitle.value.trim().length > 0) {
+          titleError.classList.remove('show');
+          taskTitle.classList.remove('has-error');
+        }
+      });
+
+      // App Entry Point
+      function init() {
+        updateTodayHeader();
+        loadTasksFromStorage();
+        setupFilters();
+        setupSort();
+        setupSearch();
+
+        taskForm.addEventListener('submit', addTask);
+
+        render();
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
